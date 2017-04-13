@@ -1,21 +1,10 @@
 from __future__ import division
 import requests, json
 from StockTwitsDataset import STDataset 
-from stockTwits_analysis import STAnalysis
+from StockTwits_Analysis import STAnalysis
 import time
+import StockTwits_StockList as STSL
 
-ENEGY = ['XOM','PXD','CVX','HAL','COP']
-BASIC_MATERIALS = ['FCX','X','IP','LYB','VMC']
-INDUSTRIALS = ['GE','BA','UNP','MMM','CAT']
-CYCLICAL_CON_GOODS_SERVICES = ['DIS','TSLA','NFLX','ORLY','SBUX']
-FINANCIALS = ['SPY','BAC','QQQ','JPM','C']
-HEALTHCARE = ['GILD','BMY','PFE','JNJ','AMGN']
-TECHNOLOGY = ['AAPL','AMZN','NVDA','CTSH','MSFT','AMD']
-TELECOMMUNICATIONS = ['VZ','T','CMCSA','CTL']
-UTILITIES = ['EXC','NEE','EIX','DUK','D']
-
-ALL_LIST = ENEGY+BASIC_MATERIALS+INDUSTRIALS+CYCLICAL_CON_GOODS_SERVICES+FINANCIALS+HEALTHCARE+TECHNOLOGY
-ALL_LIST += TELECOMMUNICATIONS + UTILITIES
 
 def get_access_token():
 	"""get access token"""
@@ -150,17 +139,24 @@ class StockTwits_DataObtain:
 		last_time_request_news = 0
 		last_time_request_users = 0
 		last_time_request_stocks = 0
+		last_time_analyze=0
 		stocks_delay = 60
 		news_delay = 60
-                do_news = False
+		do_news = False
+		# analyzer = STAnalysis(database="bigdata")
 		while True:
 			try:
-				if int(time.time())-self.request_start >3600: #every hour
+				# if int(time.time())-last_time_analyze >1800:
+				# 	try:
+				# 		analyzer.analysisPopularityEveryHour()
+				# 	except Exception,e:
+				# 		print Exception,e
+				# 	last_time_analyze = int(time.time())
+					
+				if int(time.time())-self.request_start >3600: 
 					self.request_count = 0
-					"""analyze and update scores"""
-					analyzer = STAnalysis(database="bigdata")
-					analyzer.analysisPopularityEveryHour()
-					print("Updating Scores ...")
+					# """analyze and update scores"""
+					# print("Updating Scores ...")
 					# break
 				if (int(time.time()) - last_time_request_news > news_delay and do_news):
 					last_time_request_news = int(time.time())
@@ -179,7 +175,7 @@ class StockTwits_DataObtain:
 				if (int(time.time()) - last_time_request_stocks > stocks_delay):
 					last_time_request_stocks = int(time.time())
 					print("Request Stocks ... ")
-					ratio = self.requestStocksSteam(ALL_LIST)
+					ratio = self.requestStocksSteam(STSL.ALL_LIST)
 					if ratio < 0.2:
 						stocks_delay = 180
 					elif ratio < 0.5:

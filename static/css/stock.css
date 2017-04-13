@@ -1,0 +1,50 @@
+/*** Stock Styles **/
+.symbol {
+  color: #000;
+  font-weight: bold;
+  font-size: 100px;
+  padding: 10px 0px 0px;
+  display: inline-block;
+  margin-right: 30px;
+}
+
+.tweetbox-container {
+  margin: 30px;
+  margin-left: 10px;
+}
+
+.tweetbox,.userBox {
+  background-color: rgb(240, 247, 254);
+}
+
+.tweetfeed {
+  background-color: rgb(240, 247, 254);
+  width: 70%;
+  border-radius:3px;
+  border-collapse: collapse;
+  /*margin: auto;*/
+  max-width: 1000px;
+  padding:5px;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+  animation: float 5s infinite;
+}
+
+.Message_Title{
+  color: black;
+  display: block;
+  margin: auto;
+  max-width: 1000px;
+  width: 100%;
+}
+
+#chart{
+   background-color: white;
+}
+
+#sentiment_chart{
+   background-color: white;
+}
+
+#price_chart{
+   background-color: white;
+}

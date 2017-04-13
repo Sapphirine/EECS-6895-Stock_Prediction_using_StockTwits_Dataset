@@ -1,0 +1,278 @@
+{% extends "bootstrap/base.html" %}
+
+{% block content %}
+<nav class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar">hello</span>
+            <span class="icon-bar">1</span>
+            <span class="icon-bar">2</span>
+          </button>
+          <a class="navbar-brand" href="#">StockTwits Prediction Project</a>
+        </div>
+        <div id="navbar" class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li><a href="/">Daily Ranks</a></li>
+</nav>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Table Style</title>
+    <meta name="viewport" content="initial-scale=1.0; maximum-scale=1.0; width=device-width;">
+    <!-- import plugin script -->
+</head>
+
+<body>
+
+<div class="symbol">
+{{stock_name}}
+</div>
+<h1>Popularity: {{popular}}</h1>
+<h1>Sentiment: {{sentiment}}</h1>
+<h1>Predicted Accuracy: {{predict}}%</h1>
+
+
+<div class="tweetfeed-container">
+    <div class="panel panel-default tweetfeed">
+      <div class="panel-body">
+      <div class="Message_Title">
+        <h3>Messages Feed</h3>
+        </div>
+        <!-- Text box for tweet content -->
+        {%for i in message%}
+          <div class="panel panel-info">
+            <div class="panel-heading">
+              <h3 class="panel-title">{{i['username']}} 
+                <span class="glyphicon glyphicon-triangle-right" aria-hidden="true"></span>
+                 {{i['time']}}
+               </h3>
+            </div>
+            <div class="panel-body">
+              {{i['body']}}
+            </div>
+          </div>
+        {%endfor%}
+      </div>
+    </div>
+</div>
+
+<h1>Popularity Chart</h1>
+<!-- bar chart canvas element -->
+<canvas id="chart" width="600" height="400"></canvas>
+
+<h1>Sentiment Chart</h1>
+<canvas id="sentiment_chart" width="600" height="400"></canvas>
+
+<h1>Price Chart</h1>
+<canvas id="price_chart" width="600" height="400"></canvas>
+
+
+<!-- <div class="table-title">
+<h3>Daily Analysis Results</h3>
+</div>
+<table class="table-fill">
+<thead>
+<tr>
+<th class="text-left">Most Popular Stocks</th>
+<th class="text-left">Most Bullish Stocks</th>
+<th class="text-left">Most Bearish Stocks</th>
+</tr>
+</thead>
+<tbody>
+<tr> 
+<td><canvas id="chart" width="600" height="400"></canvas></td>
+<td>2</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+ -->
+</body>
+{% endblock %}
+
+{% block styles %}
+{{super()}}
+<link rel="stylesheet"
+      href="{{url_for('static', filename='css/stock.css')}}">
+<link rel="stylesheet"
+      href="{{url_for('static', filename='css/index.css')}}">
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.7/angular.min.js"></script>
+<script src="{{url_for('static', filename='js/Chart.min.js')}}"></script>
+<script>
+    // console.log({{total_data[stock_name]['popular']}})
+    console.log({{popular_list}})
+   // bar chart data
+   var barData = {
+   labels : [{% for item in labels %}
+                  "{{item}}",
+              {% endfor %}],
+   datasets : [
+      {
+      label: 'Popularity Score',
+      fillColor: "rgba(151,187,205,0.2)",
+      strokeColor: "rgba(151,187,205,1)",
+      pointColor: "rgba(151,187,205,1)",
+      pointStrokeColor: "#fff",
+      pointHighlightFill: "#fff",
+      pointHighlightStroke: "rgba(151,187,205,1)",
+      bezierCurve : false,
+      data : [{% for item in popular_list %}
+                {{item}},
+              {% endfor %}]
+      }]
+   }
+ 
+    Chart.defaults.global.animationSteps = 50;
+    Chart.defaults.global.tooltipYPadding = 16;
+    Chart.defaults.global.tooltipCornerRadius = 0;
+    Chart.defaults.global.tooltipTitleFontStyle = "normal";
+    Chart.defaults.global.tooltipFillColor = "rgba(0,0,0,0.8)";
+    Chart.defaults.global.animationEasing = "easeOutBounce";
+    Chart.defaults.global.responsive = false;
+    Chart.defaults.global.scaleLineColor = "black";
+    Chart.defaults.global.scaleFontSize = 16;
+ 
+   // get bar chart canvas
+   // var mychart = document.getElementById("chart").getContext("2d");
+  
+   steps = 10
+   max = 10
+   // draw bar chart
+  var LineChartDemo = new Chart(document.getElementById("chart").getContext('2d') , {
+            type: "line",
+            data: barData, 
+            scaleOverride: true,
+          scaleSteps: steps,
+          scaleStepWidth: Math.ceil(max / steps),
+          scaleStartValue: 0,
+          scaleShowVerticalLines: true,
+          scaleShowGridLines : true,
+          barShowStroke : true,
+          scaleShowLabels: true,
+          bezierCurve: false,
+        });
+
+  console.log({{sentiment_list}})
+    // console.log({{popular_list}})
+   // bar chart data
+   var barData_sentiment = {
+   labels : [{% for item in labels %}
+                  "{{item}}",
+              {% endfor %}],
+   datasets : [
+      {
+      label: 'Sentiment Score',
+      fillColor: "rgba(151,187,205,0.2)",
+      strokeColor: "rgba(151,187,205,1)",
+      pointColor: "rgba(151,187,205,1)",
+      pointStrokeColor: "#fff",
+      pointHighlightFill: "#fff",
+      pointHighlightStroke: "rgba(151,187,205,1)",
+      bezierCurve : false,
+      data : [{% for item in sentiment_list %}
+                {{item}},
+              {% endfor %}]
+      }]
+   }
+ 
+    Chart.defaults.global.animationSteps = 50;
+    Chart.defaults.global.tooltipYPadding = 16;
+    Chart.defaults.global.tooltipCornerRadius = 0;
+    Chart.defaults.global.tooltipTitleFontStyle = "normal";
+    Chart.defaults.global.tooltipFillColor = "rgba(0,0,0,0.8)";
+    Chart.defaults.global.animationEasing = "easeOutBounce";
+    Chart.defaults.global.responsive = false;
+    Chart.defaults.global.scaleLineColor = "black";
+    Chart.defaults.global.scaleFontSize = 16;
+  
+   steps = 10
+   max = 10
+   // draw bar chart
+  var LineChartDemo = new Chart(document.getElementById("sentiment_chart").getContext('2d') , {
+            type: "line",
+            data: barData_sentiment, 
+            scaleOverride: true,
+          scaleSteps: steps,
+          scaleStepWidth: Math.ceil(max / steps),
+          scaleStartValue: 0,
+          scaleShowVerticalLines: true,
+          scaleShowGridLines : true,
+          barShowStroke : true,
+          scaleShowLabels: true,
+          bezierCurve: false,
+        });
+
+
+  console.log({{close_price}})
+  var barData_price = {
+   labels : [{% for item in labels %}
+                  "{{item}}",
+              {% endfor %}],
+   datasets : [
+      {
+      label: 'Price',
+      fillColor: "rgba(151,187,205,0.2)",
+      strokeColor: "rgba(151,187,205,1)",
+      pointColor: "rgba(151,187,205,1)",
+      pointStrokeColor: "#fff",
+      pointHighlightFill: "#fff",
+      pointHighlightStroke: "rgba(151,187,205,1)",
+      bezierCurve : false,
+      data : [{% for item in close_price %}
+                {{item}},
+              {% endfor %}]
+      }]
+   }
+ 
+    Chart.defaults.global.animationSteps = 50;
+    Chart.defaults.global.tooltipYPadding = 16;
+    Chart.defaults.global.tooltipCornerRadius = 0;
+    Chart.defaults.global.tooltipTitleFontStyle = "normal";
+    Chart.defaults.global.tooltipFillColor = "rgba(0,0,0,0.8)";
+    Chart.defaults.global.animationEasing = "easeOutBounce";
+    Chart.defaults.global.responsive = false;
+    Chart.defaults.global.scaleLineColor = "black";
+    Chart.defaults.global.scaleFontSize = 16;
+ 
+   // get bar chart canvas
+   // var mychart = document.getElementById("chart").getContext("2d");
+  
+   steps = 10
+   max = 10
+   // draw bar chart
+  var LineChartDemo = new Chart(document.getElementById("price_chart").getContext('2d') , {
+            type: "line",
+            data: barData_price, 
+            scaleOverride: true,
+          scaleSteps: steps,
+          scaleStepWidth: Math.ceil(max / steps),
+          scaleStartValue: 0,
+          scaleShowVerticalLines: true,
+          scaleShowGridLines : true,
+          barShowStroke : true,
+          scaleShowLabels: true,
+          bezierCurve: false,
+        });
+ 
+   // var LineChartDemo = new Chart(mychart).Line(barData, {
+   //      scaleOverride: true,
+   //      scaleSteps: steps,
+   //      scaleStepWidth: Math.ceil(max / steps),
+   //      scaleStartValue: 0,
+   //      scaleShowVerticalLines: true,
+   //      scaleShowGridLines : true,
+   //      barShowStroke : true,
+   //      scaleShowLabels: true,
+   //      bezierCurve: false,
+
+ 
+ 
+</script>
+{% endblock %}
