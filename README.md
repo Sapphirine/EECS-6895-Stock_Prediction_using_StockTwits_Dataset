@@ -1,6 +1,10 @@
 # Market-Intelligence-Analysis-Stock-Prediction-using-StockTwits-Dataset
 
 Here are the functionality of each file:
+## Final Report
+market-intelligence-analysis_final_report_tp2522_jj2860.pdf
+## Final Project Slide
+EECS6895-AdvancedBigDataAnalytics-Final-Project-tp2522-jj2860.pptx
 ## flaskapp.py
 Script for building our website. 
 ## StockTwits_Analysis.py
