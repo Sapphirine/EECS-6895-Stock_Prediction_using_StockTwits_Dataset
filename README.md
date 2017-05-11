@@ -11,3 +11,9 @@ Script for automatically collecting the newest StockTwits data
 List of stock that we picked for this project. Because of time and space constrain, we only picked 44 stocks to collect and analyze. Through this script, we can dynamically change the list of stocks. 
 ## StockTwits_TimeDomainAnalysis.py
 Script for gathering and analyzing data in the input time period. User can input the time period that they are interested in by giving start date and end date, and this program will return the corresponding analysis results.
+## ProcessStock.py
+Process historical data so that it can be used for training machine learning model
+## stock_ml.py
+Use historical data and new data to create machine learning model
+## WebSupport.py
+Class we used for real-time analyze and put these analysis onto our website
