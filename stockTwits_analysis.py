@@ -15,16 +15,9 @@ from yahoo_finance import Share
 import pandas as pd
 import pandas_datareader.data as web
 import StockTwits_StockList as STSL
-#ENEGY = ['XOM','PXD','CVX','HAL','COP']
-#BASIC_MATERIALS = ['FCX','X','IP','LYB','VMC']
-#INDUSTRIALS = ['GE','BA','UNP','MMM','CAT']
-#CYCLICAL_CON_GOODS_SERVICES = ['DIS','TSLA','NFLX','ORLY','SBUX']
-#FINANCIALS = ['SPY','BAC','QQQ','JPM','C']
-#HEALTHCARE = ['GILD','BMY','PFE','JNJ','AMGN']
-#TECHNOLOGY = ['AAPL','AMZN','NVDA','CTSH','MSFT']
-#TELECOMMUNICATIONS = ['VZ','T','CMCSA','CTL']
-#UTILITIES = ['EXC','NEE','EIX','DUK','D']
-#all_stocks = ['XOM', 'PXD', 'CVX', 'HAL', 'COP', 'FCX', 'X', 'IP', 'LYB', 'VMC', 'GE', 'BA', 'UNP', 'MMM', 'CAT', 'DIS', 'TSLA', 'NFLX', 'ORLY', 'SBUX', 'SPY', 'BAC', 'QQQ', 'JPM', 'C', 'GILD', 'BMY', 'PFE', 'JNJ', 'AMGN', 'AAPL', 'AMZN', 'NVDA', 'CTSH', 'MSFT', 'VZ', 'T', 'CMCSA', 'CTL', 'EXC', 'NEE', 'EIX', 'DUK', 'D']
+import schedule
+import stock_ml
+
 all_stocks = STSL.ALL_LIST
 class STAnalysis:
 	def __init__(self,database,user=None,pwd=None,url=None):
@@ -99,7 +92,7 @@ class STAnalysis:
 
 		for stock in self.list_of_stocks:
 			stock_message = self.findMessages({'created_at': {'$gte': start.isoformat(),'$lt':end.isoformat()}, 'symbols': {'$elemMatch':{'symbol':stock}}})
-			m_score, watchlist_count, trending_score, sentiment_score = self.caculateMessageScore(stock_message, stock)
+			m_score, watchlist_count, trending_score, sentiment_score, feature_list = self.caculateMessageScore(stock_message, stock)
 			if verbose:
 				print(stock)
 				print("the number of message: " + str(stock_message.count()))
@@ -148,7 +141,7 @@ class STAnalysis:
 		return sorted_stock_dict, sorted_stock_sentiment_dict
 
 
-	def analysisPopularityEveryHour(self, date=None, hour=None, verbose=False):
+	def analysisPopularityEveryHour(self, date=None, hour=None, verbose=False, sentiment=False):
 		no_input_date= False
 		if date==None or hour == None:
 			cur_hour =  datetime.datetime.now()
@@ -166,6 +159,7 @@ class STAnalysis:
 		stock_dict = dict()
 		stock_sentiment_dict = dict()
 		stock_price_dict = dict()
+		stock_feature_dict = dict() #for machine learning
 
 		"""find yesterday scores"""
 		yesterday = start + datetime.timedelta(days=-1)
@@ -200,7 +194,12 @@ class STAnalysis:
 			# 	print("Error when getting stock prices. (Might becuase there is no opening price yet) :" + str(e))
 
 			stock_message = self.findMessages({'created_at': {'$gte': start.isoformat(),'$lt':cur_time.isoformat()}, 'symbols': {'$elemMatch':{'symbol':stock}}})
-			m_score, watchlist_count, trending_score, sentiment_score = self.caculateMessageScore(stock_message, stock, verbose=verbose)
+			m_score, watchlist_count, trending_score, sentiment_score, feature_list = self.caculateMessageScore(stock_message, stock, verbose=verbose, sentiment=sentiment)
+			today_date_to_int = int("".join(today_str.split("-")))
+			feature_list = [today_date_to_int] + feature_list
+			stock_feature_dict[stock] = feature_list
+			# print(feature_list)
+			# print(len(feature_list))
 			if query_result != None: #if there is a yesterday popurality score
 				if m_score == 0 or watchlist_count == 0: #if there is no message that day
 					stock_dict[stock] = trending_score*10*0.75 + yesterday_popularity[stock]*0.25
@@ -247,6 +246,7 @@ class STAnalysis:
 			"sentiment": stock_sentiment_dict,
 			"price": stock_price_dict,
 			# "date": time.strftime("%Y-%m-%d", time.localtime())
+			"feature": stock_feature_dict,
 			"date": today_str
 		}
 		print(ranklist)
@@ -254,12 +254,21 @@ class STAnalysis:
 		# query_result = self.database.findDailyRank({"date": time.strftime("%Y-%m-%d", time.localtime())})
 		return sorted_stock_dict, sorted_stock_sentiment_dict
 
-	def caculateMessageScore(self, messages, stock, verbose=False):
+	def caculateMessageScore(self, messages, stock, verbose=False, sentiment=False):
 		m_score = 0
 		watchlist_count = 0
 		trending_score = 0
 		sentiment_score = 0
 		# print(messages.count())
+
+		total_like = 0
+		total_reshare = 0
+		user_set = set()
+		total_followers = 0
+		total_subscribers = 0
+		bullish_count = 0
+		bearish_count = 0
+		
 		if messages.count() > 0:
 			symbols = dict(messages[0])['symbols']
 			watchlist_count = 0
@@ -269,6 +278,9 @@ class STAnalysis:
 					# trending = symbol['trending']
 					history_trending_score = symbol['trending_score']
 					trending_score = history_trending_score
+		# print("in cal stock")
+		# print(trending_score)
+		# print(messages.count())
 		for m in messages:
 			# pprint.pprint(m)
 			m = dict(m)
@@ -278,7 +290,16 @@ class STAnalysis:
 			followers = m['user']['followers']
 			subscribers_count = m['user']['subscribers_count']
 			sentiment = m['entities']['sentiment']
+			user_id = m["user"]["id"]
 			# print(reshared_count, like_count, followers, sentiment)
+
+			#calculate totals for ml
+			total_like +=  like_count
+			total_reshare +=  reshared_count
+			user_set.add(user_id)
+			total_followers += followers
+			total_subscribers += subscribers_count
+
 			cur_score = 10 + reshared_count + like_count + followers+ subscribers_count*10
 			m_score += cur_score
 			# print(sentiment)
@@ -286,27 +307,38 @@ class STAnalysis:
 				# print(sentiment)
 				if sentiment['basic'] == 'Bearish':
 					sentiment_score += -10* math.log(cur_score)
+					bearish_count += 1
 				if sentiment['basic'] == 'Bullish':
 					sentiment_score += 10* math.log(cur_score)
-			# else:
-			# 	try:
-			# 		messages_body = m['body']
-			# 		sentiment = self.sentiment_analysis(messages_body)
-			# 		if sentiment[0] == 'neg':
-			# 			sentiment_score += -1*sentiment[1]* math.log(cur_score)
-			# 		elif sentiment[0] == 'pos':
-			# 			sentiment_score += 1*sentiment[2]* math.log(cur_score)
-			# 		print(messages_body)
-			# 		print(sentiment[0], sentiment[1], sentiment[2])
-			# 		if verbose:
-			# 			print(messages_body)
-			# 			print(sentiment[0], sentiment[1], sentiment[2])
-			# 	except:
-			# 		print("error with sentiment analysis")
+					bullish_count += 1
+			else:
+				if sentiment:
+					try:
+						messages_body = m['body']
+						sentiment = self.sentiment_analysis(messages_body)
+						if sentiment[0] == 'neg':
+							sentiment_score += -1*sentiment[1]* math.log(cur_score)
+							bearish_count += 1
+						elif sentiment[0] == 'pos':
+							sentiment_score += 1*sentiment[2]* math.log(cur_score)
+							bullish_count += 1
+						print(messages_body)
+						print(sentiment[0], sentiment[1], sentiment[2])
+						if verbose:
+							print(messages_body)
+							print(sentiment[0], sentiment[1], sentiment[2])
+					except:
+						print("error with sentiment analysis")
 
 			# print(m_score)
 			# break
-		return m_score, watchlist_count, trending_score, sentiment_score
+
+		#create list of features for machine learning
+		total_user_count = len(user_set)
+		message_count = messages.count()
+		feature_list = [total_like, total_reshare, total_user_count, total_followers, total_subscribers, watchlist_count, trending_score, message_count, bullish_count, bearish_count]
+
+		return m_score, watchlist_count, trending_score, sentiment_score, feature_list
 
 	def printTopLists(self, sorted_stock_dict, sorted_stock_sentiment_dict, topN=3):
 		re = {"popular":[],"bearish":[],"bullish":[]}
@@ -381,13 +413,15 @@ class STAnalysis:
 			# print(int(time.time()))
 			if int(time.time())-last_time_analyze >3600:
 				try:
-					self.analysisPopularityEveryHour()
+					analyzer.analysisPopularityEveryHour()
+					self.analysisPopularityEveryHour(sentiment=True)
 					# return
 				except Exception,e:
 					print Exception,e
 				last_time_analyze = int(time.time())
-					
-				time.sleep(1800)
+			
+			schedule.run_pending()
+			time.sleep(60)
 
 	def find_messages(self, stock, sentiment=None):
 		cur_hour =  datetime.datetime.now()
@@ -425,12 +459,110 @@ class STAnalysis:
 			message.append(cur_m)
 		return message
 
+	def add_date_feature(self, query_date):
+		# datestr = str(num_date)
+		# query_date = datestr[0:4]+"-"+datestr[4:6]+"-"+datestr[6:8]
+		stocks = self.database.findDailyRank({"date":query_date})
+		# print(stocks)
+		try:
+			for st in all_stocks:
+				output_item = [query_date,None,None]
+				open_price = stocks["price"][st]['Open']
+				close_price = stocks["price"][st]["Adj Close"]
+				stock_feature_dict = stocks["feature"][st]
+				output_item.append(stock_feature_dict[1])
+				output_item.append(stock_feature_dict[2])
+				output_item.append(stock_feature_dict[3])
+				output_item.append(open_price)
+				output_item.append(close_price)
+				output_item.append(stock_feature_dict[4])
+				output_item.append(stock_feature_dict[5])
+				output_item.append(stock_feature_dict[6])
+				output_item.append(stock_feature_dict[7])
+				output_item.append(stock_feature_dict[8])
+				output_item.append(stock_feature_dict[9])
+				output_item.append(stock_feature_dict[10])
+				input_file = open("historical_data/"+st+".list",'r')
+				data_list = eval(input_file.read())
+				input_file.close()
+				last = data_list[-1]
+				if last[0] == output_item[0]:
+					del data_list[-1]
+					data_list.append(output_item)
+				elif last[0] < output_item[0]:
+					data_list.append(output_item)
+
+				output_file = open("historical_data/"+st+".list",'w')
+				# print(data_list)
+				output_file.write(str(data_list))
+				output_file.flush()
+				output_file.close()
+		except Exception as e:
+			print("error during adding feature: " + str(e))
+
+	def retrain_model_every_day():
+		schedule.every().day.at("06:00").do(self.retrain_model, )
+
+	def retrain_model(self, query_date=None):
+		if query_date == None:
+			yesterday =  datetime.date.today() - datetime.timedelta(1)
+			# print("today_str: " + str(yesterday))
+			query_date = str(yesterday)
+		self.add_date_feature(query_date)
+		print ("Added feature of date: " + query_date)
+		stock_ml.calculate_accuracy_all_stocks(all_stocks, stock_ml.apply_naive_bayes, save_model=True)
+		print("retrained the models")
+
+
+
+	    
+
 			
 
 
 if __name__ == '__main__':
 	analyzer = STAnalysis(database="bigdata")
 	# analyzer.analysisPopularityEveryHour()
+	# analyzer.analysisPopularityEveryHour(sentiment=True)
+
+	# today = datetime.date(2017, 5, 4)
+	# today_str = str(today)
+	analyzer.retrain_model()
+
+	"""test dynamically adding new features"""
+	# today = datetime.date(2017, 2, 16)
+	# today_str = str(today)
+	# print(today)
+	# analyzer.add_date_feature(today_str)
+	# """Feb"""
+	# for i in range(17, 29):
+	# 	today = datetime.date(2017, 2, i)
+	# 	today_str = str(today)
+	# 	print(today_str)
+	# 	analyzer.add_date_feature(today_str)
+
+	# """March"""
+	# for i in range(1, 32):
+	# 	today = datetime.date(2017, 3, i)
+	# 	today_str = str(today)
+	# 	print(today_str)
+	# 	analyzer.add_date_feature(today_str)
+
+	# """April"""
+	# for i in range(1, 31):
+	# 	today = datetime.date(2017, 4, i)
+	# 	today_str = str(today)
+	# 	print(today_str)
+	# 	analyzer.add_date_feature(today_str)
+
+	# """May"""
+	# for i in range(1, 4):
+	# 	today = datetime.date(2017, 5, i)
+	# 	today_str = str(today)
+	# 	print(today_str)
+	# 	analyzer.add_date_feature(today_str)
+
+
 	"""automatically update the analysis every hour"""
 	# analyzer.run_every_hour()
 
@@ -444,7 +576,7 @@ if __name__ == '__main__':
 	# analyzer.get_stock_price('XOM', '2014-04-25', '2014-04-26')
 	# start = datetime.datetime(2017, 3, 20)
 	# end = datetime.datetime(2017, 3, 30)
-	# analyzer.get_stock_price_update('AAPL', start, end)
+	# print(analyzer.get_stock_price_update('AAPL', start, end))
 
 	"""test sentiment analysis"""
 	# sentence = "I love this!"
@@ -459,10 +591,10 @@ if __name__ == '__main__':
 	"""calculate and show daily rank"""
 	# cur_hour =  datetime.datetime.now()
 
-	date = (2017, 4, 10)
-	cl = analyzer.findMessageOneDay(date) 
-	sorted_stock_dict, sorted_stock_sentiment_dict = analyzer.analysisPopularityEveryHour(date, 23, verbose=False)
-	analyzer.printTopLists(sorted_stock_dict, sorted_stock_sentiment_dict, topN=5)
+	# date = (2017, 5, 05)
+	# cl = analyzer.findMessageOneDay(date) 
+	# sorted_stock_dict, sorted_stock_sentiment_dict = analyzer.analysisPopularityEveryHour(date, 23, verbose=False)
+	# analyzer.printTopLists(sorted_stock_dict, sorted_stock_sentiment_dict, topN=5)
 
 	# date = (2017, 3, 31)
 	# cl = analyzer.findMessageOneDay(date) 
@@ -503,7 +635,7 @@ if __name__ == '__main__':
 	# 	# break
 
 	# """March"""
-	# for i in range(1, 31):
+	# for i in range(1, 32):
 	# 	date = (2017, '03', i)
 	# 	print(date)
 	# 	# cl = analyzer.findMessageOneDay(date)
@@ -512,8 +644,18 @@ if __name__ == '__main__':
 	# 	# break
 
 	# """April"""
-	# for i in range(1, 12):
+	# for i in range(1, 31):
 	# 	date = (2017, '04', i)
+	# 	print(date)
+	# 	# cl = analyzer.findMessageOneDay(date)
+	# 	sorted_stock_dict, sorted_stock_sentiment_dict = analyzer.analysisPopularityEveryHour(date, 23, verbose=False)
+	# # date = (2017, '05', 05)
+	# # sorted_stock_dict, sorted_stock_sentiment_dict = analyzer.analysisPopularityEveryHour(date, 23, verbose=False)
+
+
+	# """May"""
+	# for i in range(1, 5):
+	# 	date = (2017, '05', i)
 	# 	print(date)
 	# 	# cl = analyzer.findMessageOneDay(date)
 	# 	sorted_stock_dict, sorted_stock_sentiment_dict = analyzer.analysisPopularityEveryHour(date, 23, verbose=False)

@@ -10,18 +10,19 @@
             <span class="icon-bar">1</span>
             <span class="icon-bar">2</span>
           </button>
-          <a class="navbar-brand" href="#">StockTwits Prediction Project</a>
+          <a class="navbar-brand" href="/stock">StockTwits Prediction Project</a>
         </div>
         <div id="navbar" class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
-            <li><a href="/">Daily Ranks</a></li>
+            <li><a href="/stock">Daily Ranks</a></li>
+            <li><a href="/all_symbols">All Symbols List</a></li>
 </nav>
 
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <title>Table Style</title>
-    <meta name="viewport" content="initial-scale=1.0; maximum-scale=1.0; width=device-width;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <!-- import plugin script -->
 </head>
 
@@ -32,7 +33,9 @@
 </div>
 <h1>Popularity: {{popular}}</h1>
 <h1>Sentiment: {{sentiment}}</h1>
-<h1>Predicted Accuracy: {{predict}}%</h1>
+<h1>Sentiment Score Predicted Accuracy: {{predict}}%</h1>
+<h1>Machine Learning Prediction: {{ml_predict[0]}}</h1>
+<h1>Machine Learning Prediction Accuracy : {{ml_predict[1]}}%</h1>
 
 
 <div class="tweetfeed-container">

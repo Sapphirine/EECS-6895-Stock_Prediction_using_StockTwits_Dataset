@@ -13,7 +13,7 @@ import copy
 app = Flask(__name__)
 Bootstrap(app)
 
-@app.route("/stock",methods=['POST', 'GET'])
+@app.route("/",methods=['POST', 'GET'])
 def firstPage():
 	context = dict()
 	fun = TempClass()
@@ -23,7 +23,7 @@ def firstPage():
 	return render_template("index.html", **context)
 
 
-@app.route("/symbol/<stock_name>",methods=['POST', 'GET'])
+@app.route("/stock/symbol/<stock_name>",methods=['POST', 'GET'])
 def stock(stock_name):
 	context = dict()
 	fun = TempClass()
@@ -34,55 +34,31 @@ def stock(stock_name):
 	context['stock_name'] = stock_name
 	context['total_data'] = data
 	context['close_price'],  weekend_index = fun.get_close_price(data, stock_name)
-	one_month_data, _ = fun.get_time_query(span=40)
-	context['predict'] =  str("%.2f"%fun.get_predict(one_month_data, [stock_name])[stock_name]['predict'])
-	# print(time_string_list)
-	# print(weekend_index)
-	if weekend_index != []:
-		del time_string_list[weekend_index[0]]
-		del time_string_list[weekend_index[1]-1]
+	context['predict'] =  str("%.2f"%fun.get_predict(data, [stock_name])[stock_name]['predict'])
+	del time_string_list[weekend_index[0]]
+	del time_string_list[weekend_index[1]-1]
 	popular_list = data[stock_name]['popular']
-	if weekend_index != []:
-		del popular_list[weekend_index[0]]
-		del popular_list[weekend_index[1]-1]
+	del popular_list[weekend_index[0]]
+	del popular_list[weekend_index[1]-1]
 	sentiment_list = data[stock_name]['sentiment']
-	if weekend_index != []:
-		del sentiment_list[weekend_index[0]]
-		del sentiment_list[weekend_index[1]-1]
+	del sentiment_list[weekend_index[0]]
+	del sentiment_list[weekend_index[1]-1]
 	context['popular_list'] = popular_list
 	context['sentiment_list'] = sentiment_list
 	context['labels'] = time_string_list
 	context['message'] = message
 	context['top_lists'] = top_lists
 	context['popular'] = str("%.2f"%data[stock_name]['popular'][-1])
-
-	#get ml prediction
-	prediction, prob = fun.get_prediction([stock_name])[stock_name]
-	# prob =  str("%.2f"%prob)
-	context['ml_predict'] = [prediction, prob]
 	return render_template("stock.html", **context)
-
-@app.route("/all_symbols",methods=['POST', 'GET'])
-def symbols():
-	context = dict()
-	fun = TempClass()
-
-	#get ml prediction
-	stock_list = STSL.ALL_LIST
-	stock_prediction_dict = fun.get_prediction(stock_list)
-	context['sorted_keys'] = sorted(stock_prediction_dict.keys())
-	context['ml_predict'] = stock_prediction_dict
-	return render_template("all_symbols.html", **context)
 
 
 if __name__ == "__main__":	
-	app.debug = True
-	app.run(host='0.0.0.0',port=8000)
+	# app.debug = True
+	# app.run(host='0.0.0.0',port=8050)
 
-	# fun = TempClass()
-	# data, time_string_list = fun.get_time_query(span=30)
-	# predict = fun.get_predict(data, ['X'])
-	# print(predict)
+	fun = TempClass()
+	data, time_string_list = fun.get_time_query()
+	predict = fun.get_predict(data, ['X'])
 	# close_price,  weekend_index = fun.get_close_price(data, 'JPM')
 	# print(data['JPM'])
 	# print(time_string_list)

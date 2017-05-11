@@ -14,23 +14,16 @@
         </div>
         <div id="navbar" class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
-            <li><a href="/">Daily Ranks</a></li>
+            <li><a href="/stock">Daily Ranks</a></li>
             <li><a href="/all_symbols">All Symbols List</a></li>
-            <!-- {% if not session.uid %}
-            <li><a href="/loginpage">Sign in/Register</a></li>
-            {% else %}
-            <li><a href="/userProfile">User Page</a></li>
-            <li><a href="/signout">Sign Out</a></li>
-            <li><a href="/createOrder">Create Order</a></li>
-            {% endif %}
-          </ul> -->
+
 </nav>
 
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <title>Table Style</title>
-    <meta name="viewport" content="initial-scale=1.0; maximum-scale=1.0; width=device-width;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 </head>
 
 <body>
@@ -40,19 +33,17 @@
 <table class="table-fill">
 <thead>
 <tr>
-<th class="text-left">Rank</th>
-<th class="text-left">Most Popular Stocks</th>
-<th class="text-left">Most Bullish Stocks</th>
-<th class="text-left">Most Bearish Stocks</th>
+<th class="text-left">Symbol</th>
+<th class="text-left">Prediction</th>
+<th class="text-left">Confidence Score</th>
 </tr>
 </thead>
 <tbody>
-{% for i in range(topLen) %}
+{% for stock in sorted_keys %}
 <tr> 
-<td>{{i+1}}</td>
-<td><a href="symbol/{{top_lists['popular'][i]['name']}}">{{top_lists['popular'][i]['name']}}</td>
-<td><a href="symbol/{{top_lists['bullish'][i]['name']}}">{{top_lists['bullish'][i]['name']}}</td>
-<td><a href="symbol/{{top_lists['bearish'][i]['name']}}">{{top_lists['bearish'][i]['name']}}</td>
+<td><a href="symbol/{{stock}}">{{stock}}</td>
+<td>{{ml_predict[stock][0]}}</td>
+<td>{{ml_predict[stock][1]}}</td>
 </tr>
 {% endfor %}
 </tbody>
