@@ -513,9 +513,194 @@ class STAnalysis:
 		stock_ml.calculate_accuracy_all_stocks(all_stocks, stock_ml.apply_naive_bayes, save_model=True)
 		print("retrained the models")
 
+	def microsoft_all_messages(self, messages):
 
+		import urllib2
+		import urllib
+		import sys
+		import base64
+		import json
 
+		# Azure portal URL.
+		base_url = 'https://westus.api.cognitive.microsoft.com/'
+		# Your account key goes here.
+		account_key = '170930c40a4e4cc69e0fcea995262a83'
+
+		headers = {'Content-Type':'application/json', 'Ocp-Apim-Subscription-Key':account_key}
+		            
+		input_texts = '{"documents":['
+		count = 1
+		for m in messages: 
+				messages_body = m['body']
+				#ignore non-ascii characters
+				messages_body = "".join(filter(lambda x: ord(x)<128, messages_body))
+				input_texts += '{"id":\'' + str(count) + '\',"text":\'' + messages_body + '\'},'
+				count += 1
+		# print(input_texts)
+		input_texts += ']}'
+		num_detect_langs = 1;
+
+		# Detect sentiment.
+		batch_sentiment_url = base_url + 'text/analytics/v2.0/sentiment'
+		req = urllib2.Request(batch_sentiment_url, input_texts, headers) 
+		response = urllib2.urlopen(req)
+		result = response.read()
+		obj = json.loads(result)
+
+		bearish_count = 0
+		bullish_count = 0
+		for sentiment_analysis in obj['documents']:
+		    # print('Sentiment ' + str(sentiment_analysis['id']) + ' score: ' + str(sentiment_analysis['score']))
+		    score = sentiment_analysis['score']
+		    if score < 0.5:
+		    	bearish_count += 1
+		    else:
+		    	bullish_count += 1
+		if bearish_count > bullish_count:
+			return -1
+		else:
+			return 1
+
+	def sentiment_comparsion_one_day(self, query_date):
+		today = query_date
+		end = today + datetime.timedelta(days=1)
+		today_str = str(today)
+		tomorrow_str = str(end)
+		if len(today_str) > 10:
+			today_str = today_str[0:-9]
+		print("today_str: " + today_str)
+		print("tomorrow_str: " + tomorrow_str)
+		
+		stock_comparsion_dict = dict()
+		
+		"""find yesterday scores"""
+		yesterday = today + datetime.timedelta(days=-1)
+		yesterday_str = str(yesterday)
+		if len(yesterday_str) > 10:
+			yesterday_str = str(yesterday)[0:-9]
+		
+		print("yesterday: " + yesterday_str)
+		query_result = self.database.findDailyRank({'date':yesterday_str})
+		print("yesterday query_result: " + str(query_result))
+		if query_result != None and "popular" in query_result and "sentiment" in query_result:
+			yesterday_popularity = query_result["popular"]
+			yesterday_sentiment = query_result["sentiment"]
+		else:
+			query_result=None
+
+		# total_m_score = 0
+		# total_s_score = 0
+		for stock in self.list_of_stocks:
+			# print(today_str)
+			today_result = self.database.findDailyRank({'date':today_str})
+			tomorrow_result = self.database.findDailyRank({'date':tomorrow_str})
+			# print("today query_result: " + str(today_result))
+			if today_result != None and tomorrow_result != None:
+				stock_price = today_result['price'][stock]
+				tomorrow_stock_price = tomorrow_result['price'][stock]
+				if stock_price != None and tomorrow_stock_price != None:
+					open_price = stock_price['Open']
+					tomorrow_open_price = tomorrow_stock_price['Open']
+				else: 
+					return None
+			else:
+				return None
+
+			if tomorrow_open_price > open_price:
+				true_trend = 1
+			else:
+				true_trend = -1
+
+			stock_message = self.findMessages({'created_at': {'$gte': today.isoformat(),'$lt':end.isoformat()}, 'symbols': {'$elemMatch':{'symbol':stock}}})
+			if stock_message.count() != 0:
+				try:
+					microsoft_score = self.microsoft_all_messages(stock_message)
+				except:
+					print("error during micro analysis")
+					stock_comparsion_dict[stock] = [0, 0]
+				# microsoft_score = 0 #change
+				sentiment_score = today_result['sentiment'][stock]
+				print(microsoft_score,sentiment_score,true_trend)
+
+				if microsoft_score == true_trend:
+					microsoft_score = 1
+				else:
+					microsoft_score = 0
+				if (sentiment_score < 0) ==  (true_trend < 0) :
+					sentiment_score = 1
+				else:
+					sentiment_score = 0
+				stock_comparsion_dict[stock] = [microsoft_score, sentiment_score]
+				# total_m_score += microsoft_score
+				# total_s_score += sentiment_score
+
+			# print(today, end)
+			# print("message count: " + str(stock_message.count()))
+				# print(total_m_score, total_s_score)
+				# print(microsoft_score, sentiment_score, true_trend)
+				print(stock_comparsion_dict[stock])
+
+			else: 
+				stock_comparsion_dict[stock] = [1, 1]
+			
+				
+
+		print(stock_comparsion_dict)
+		return stock_comparsion_dict
+		
+		# return float(total_m_score)/44, float(total_s_score/44
 	    
+	def calcuate_accuracy(self):
+		today =  datetime.date(2017, 4, 16)
+		print(today)
+		start = datetime.date(2017, 3, 15)
+		m_accuracy_dict = dict()
+		s_accuracy_dict = dict()
+		count = 0
+		for k in self.list_of_stocks:
+			m_accuracy_dict[k] = 0
+			s_accuracy_dict[k] = 0
+		# m_acc = 0
+		# s_acc = 0
+		while start != today:
+			print(start)
+			# try:
+			# 	stock_comparsion_dict = analyzer.sentiment_comparsion_one_day(start)
+			# except Exception as e:
+			# 	print(str(e))
+			# 	print(s_accuracy_dict)
+			# 	print(m_accuracy_dict)
+			# 	break
+			stock_comparsion_dict = analyzer.sentiment_comparsion_one_day(start)
+
+			# print(m_score, s_score)
+			# m_acc += m_score
+			# s_acc += s_score
+			if stock_comparsion_dict != None:
+				for k, v in stock_comparsion_dict.items():
+					m_accuracy_dict[k] += v[0]
+					s_accuracy_dict[k] += v[1]
+				count += 1
+			start = start + datetime.timedelta(days=1)
+
+			# break
+
+		# for k, v in accuracy_dict:
+		# 	accuracy_dict[k] = v/float(count)
+
+		# values = accuracy_dict.values()
+		# values = [i/float(count) for i in values]
+		# avg_accu = sum(values)/len(values)
+		print(count)
+		for k in sorted(m_accuracy_dict.keys()):
+			m_accuracy_dict[k] = m_accuracy_dict[k]/float(count)
+			s_accuracy_dict[k] = s_accuracy_dict[k]/float(count)
+			print(k, m_accuracy_dict[k], s_accuracy_dict[k])
+		m_avg = sum(m_accuracy_dict.values())/44.0
+		s_avg = sum(s_accuracy_dict.values())/44.0
+
+		# return m_acc/count, s_acc/count
+		return m_avg, s_avg
 
 			
 
@@ -527,7 +712,13 @@ if __name__ == '__main__':
 
 	# today = datetime.date(2017, 5, 4)
 	# today_str = str(today)
-	analyzer.retrain_model()
+	# analyzer.retrain_model()
+
+	"""compare with microsoft sentiment analysis"""
+	# date = datetime.date(2017, 3, 2)
+	# analyzer.sentiment_comparsion_one_day(date)
+	# m_acc, s_acc = analyzer.calcuate_accuracy()
+	# print(m_acc, s_acc)
 
 	"""test dynamically adding new features"""
 	# today = datetime.date(2017, 2, 16)
